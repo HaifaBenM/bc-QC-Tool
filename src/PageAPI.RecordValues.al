@@ -10,18 +10,25 @@
 // groupes produit existants sur TOUS les comptes, jamais lequel appartient
 // à quel compte.
 //
-// Utilisation OData, une fois publiée :
-//   GET .../api/talan/qctools/v1.0/companies({id})/recordValues
-//       ?$filter=tableId eq 15 and fieldNo eq 38
-//   (remplacer 38 par le numéro réel du champ "Gen. Prod. Posting Group"
-//   sur la table 15 dans VOTRE version BC — vérifier via l'objet AL
-//   "G/L Account" ou le Field Explorer, le numéro peut varier selon
-//   localisation/version)
+// DEUX FAÇONS DE FILTRER LE CHAMP — jamais de numéro codé en dur requis :
 //
-// Réponse : une ligne par compte GL qui a une valeur non vide sur ce
-// champ — recordKey = "No." du compte, value = la valeur du champ.
-// Un compte absent du résultat = champ vide pour ce compte (même logique
-// que tableValues : on ne matérialise que le non-vide, plus léger).
+// 1) Par nom de champ AL (recommandé, 100% dynamique) — le nom interne
+//    d'un champ ("Gen. Bus. Posting Group") est stable dans toutes les
+//    localisations BC, seule sa légende affichée est traduite. Résolu par
+//    réflexion à chaque appel, jamais figé nulle part :
+//      GET .../recordValues?$filter=tableId eq 15
+//          and fieldNameFilter eq 'Gen. Prod. Posting Group'
+//
+// 2) Par numéro de champ, si déjà connu (plus rapide, un aller-retour de
+//    moins) :
+//      GET .../recordValues?$filter=tableId eq 15 and fieldNo eq 38
+//
+// Réponse : une ligne par enregistrement qui a une valeur non vide sur ce
+// champ — recordKey = clé primaire (No. du compte pour la table 15),
+// value = la valeur du champ, fieldNo = le numéro résolu (utile même en
+// mode 1, pour audit/cache côté appelant). Un enregistrement absent du
+// résultat = champ vide (même logique que tableValues : on ne matérialise
+// que le non-vide, plus léger).
 // ═══════════════════════════════════════════════════════════════════════
 
 page 50104 "Talan QC Record Values API"
@@ -53,6 +60,8 @@ page 50104 "Talan QC Record Values API"
             { Caption = 'recordKey', Locked = true; }
             field(value; Rec.Value)
             { Caption = 'value', Locked = true; }
+            field(fieldNameFilter; Rec."Field Name Filter")
+            { Caption = 'fieldNameFilter', Locked = true; }
         }
     }
 
@@ -60,6 +69,7 @@ page 50104 "Talan QC Record Values API"
     var
         TableIdFilter: Integer;
         FieldNoFilter: Integer;
+        FieldNameFilterText: Text;
         FilterText: Text;
         RecRef: RecordRef;
         FldRef: FieldRef;
@@ -70,20 +80,42 @@ page 50104 "Talan QC Record Values API"
         ValText: Text;
         KeyText: Text;
     begin
-        // Mêmes règles de filtrage que Talan QC Table Values API (page
-        // 50106) — tableId et fieldNo obligatoires, sinon on ne retourne
-        // rien plutôt que de scanner toute la base par erreur.
         FilterText := Rec.GetFilter("Table ID");
         if FilterText = '' then exit;
         Evaluate(TableIdFilter, FilterText);
         if TableIdFilter = 0 then exit;
 
+        // fieldNo explicite a priorité s'il est fourni ; sinon on résout
+        // dynamiquement par nom — jamais les deux filtres vides.
         FilterText := Rec.GetFilter("Field No.");
-        if FilterText = '' then exit;
-        Evaluate(FieldNoFilter, FilterText);
-        if FieldNoFilter = 0 then exit;
+        if FilterText <> '' then
+            Evaluate(FieldNoFilter, FilterText)
+        else
+            FieldNoFilter := 0;
+
+        FieldNameFilterText := Rec.GetFilter("Field Name Filter");
+
+        if (FieldNoFilter = 0) and (FieldNameFilterText = '') then
+            exit;
 
         RecRef.Open(TableIdFilter);
+
+        // Résolution dynamique par nom AL — parcourt les champs de la
+        // table et compare leur Name (stable inter-localisations, pas leur
+        // Caption traduite) au filtre demandé.
+        if (FieldNoFilter = 0) and (FieldNameFilterText <> '') then
+            for i := 1 to RecRef.FieldCount() do begin
+                FldRef := RecRef.FieldIndex(i);
+                if FldRef.Name = FieldNameFilterText then begin
+                    FieldNoFilter := FldRef.Number;
+                    break;
+                end;
+            end;
+
+        if FieldNoFilter = 0 then begin
+            RecRef.Close();
+            exit;  // ni fieldNo valide ni nom de champ résolu — rien à faire
+        end;
 
         KeyRef := RecRef.KeyIndex(1);
 
