@@ -63,7 +63,12 @@ page 50107 "Talan QC Table Caption API"
 
         GLOBALLANGUAGE(1036); // French (France) — cohérent avec le reste de l'outil
 
-        if not RecRef.Open(TableIdFilter) then
+        // CORRIGÉ (AL0173) : RecordRef.Open() est une procédure void, pas
+        // une fonction booléenne — "not RecRef.Open(...)" est invalide en
+        // AL. Pattern standard : TryFunction locale pour rendre l'échec
+        // testable (table inexistante/inaccessible = ID invalide, pas une
+        // exception à laisser remonter).
+        if not TryOpenTable(RecRef, TableIdFilter) then
             exit;
 
         Rec.Init();
@@ -72,5 +77,11 @@ page 50107 "Talan QC Table Caption API"
         Rec.Insert();
 
         RecRef.Close();
+    end;
+
+    [TryFunction]
+    local procedure TryOpenTable(var RecRef: RecordRef; TableIdFilter: Integer)
+    begin
+        RecRef.Open(TableIdFilter);
     end;
 }
