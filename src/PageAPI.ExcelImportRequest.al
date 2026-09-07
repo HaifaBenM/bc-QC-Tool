@@ -1,13 +1,5 @@
-// AJOUTÉ (27/08/2026) — voir Tab50109.TalanQCExcelImportReq.al pour le
-// contexte complet. Un POST sur cette page (JSON avec packageCode et
-// fileContent en base64) déclenche OnInsertRecord, qui appelle le
-// codeunit d'import (voir Cod50109.TalanQCExcelImportMgt.al).
-//
-// Exemple d'appel côté Python (bc_api.py) :
-//   POST .../api/talan/qctools/v1.0/companies({id})/excelImportRequests
-//   { "packageCode": "MDD-PAYS", "fileContent": "<base64 du xlsx>" }
-// Réponse : la même entité, avec "success" et "errorMessage" renseignés.
-page 50109 "Talan QC Excel Import API"
+
+page 50390 "Talan QC Excel Import API"
 {
     PageType = API;
     APIPublisher = 'talan';
@@ -50,7 +42,19 @@ page 50109 "Talan QC Excel Import API"
         }
     }
 
+    // AJOUTÉ (31/08/2026) — création "vide" : ne touche jamais au Blob ici,
+    // évite tout conflit de flux au moment de l'insertion.
     trigger OnInsertRecord(BelowxRec: Boolean): Boolean
+    begin
+        Rec.Success := false;
+        Rec."Error Message" := '';
+        exit(true);
+    end;
+
+    // AJOUTÉ (31/08/2026) — c'est ICI, au moment du PATCH séparé qui
+    // dépose fileContent sur un enregistrement déjà créé, que le
+    // traitement réel se déclenche.
+    trigger OnModifyRecord(): Boolean
     var
         ImportMgt: Codeunit "Talan QC Excel Import Mgt";
     begin

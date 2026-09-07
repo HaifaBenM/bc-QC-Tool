@@ -11,7 +11,7 @@
 // d'entrée custom qui reproduit ce que fait le bouton "Importer d'Excel"
 // de la fiche Configuration Package, mais appelable par API — en
 // contournant la limite de l'endpoint standard.
-table 50109 "Talan QC Excel Import Req"
+table 50390 "Talan QC Excel Import Req"
 {
     Caption = 'Talan QC Excel Import Request';
     DataClassification = SystemMetadata;
