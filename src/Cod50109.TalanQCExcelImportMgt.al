@@ -28,10 +28,9 @@ codeunit 50390 "Talan QC Excel Import Mgt"
             exit;
         end;
 
-        // AJOUTÉ (31/08/2026, 6e passe) — vide données ET configuration
-        // des tables du package (sans toucher au package lui-même), pour
-        // qu'ImportExcel reparte sur une base vraiment vierge à chaque
-        // appel, sans confirmation ni configuration résiduelle erronée.
+        // Vide données ET configuration des tables du package, sans
+        // toucher au package lui-même — évite la confirmation
+        // d'écrasement, tout en repartant sur une base propre.
         ConfigPackageData.SetRange("Package Code", ImportReq."Package Code");
         if not ConfigPackageData.IsEmpty() then
             ConfigPackageData.DeleteAll(true);
@@ -49,6 +48,16 @@ codeunit 50390 "Talan QC Excel Import Mgt"
         CopyStream(FileOutStream, FileInStream);
 
         ConfigExcelExchange.ImportExcel(TempBlob);
+
+        // AJOUTÉ (01/09/2026) — marque le package comme "importé avec
+        // succès" pour que l'action standard "Appliquer" (Microsoft.NAV.
+        // apply, appelée séparément par l'outil ensuite) accepte de
+        // s'exécuter. ⚠️ Ligne à vérifier/ajuster dans VS Code — nom de
+        // champ et valeur d'énuméré non confirmés contre le Base App.
+        if ConfigPackage.Get(ImportReq."Package Code") then begin
+            ConfigPackage.Validate("Import Status", ConfigPackage."Import Status"::Completed);
+            ConfigPackage.Modify(true);
+        end;
 
         ImportReq.Success := true;
     end;
