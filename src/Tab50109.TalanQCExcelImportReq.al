@@ -11,7 +11,7 @@
 // d'entrée custom qui reproduit ce que fait le bouton "Importer d'Excel"
 // de la fiche Configuration Package, mais appelable par API — en
 // contournant la limite de l'endpoint standard.
-table 50390 "Talan QC Excel Import Req"
+table 50109 "Talan QC Excel Import Req"
 {
     Caption = 'Talan QC Excel Import Request';
     DataClassification = SystemMetadata;
@@ -33,10 +33,10 @@ table 50390 "Talan QC Excel Import Req"
         {
             Caption = 'File Content';
             DataClassification = SystemMetadata;
-            // AJOUTÉ — les pages API exposent automatiquement un champ
-            // Blob en base64 dans le JSON (POST/PATCH), sans avoir besoin
-            // du mécanisme de flux séparé ("file('code')/content") qui a
-            // posé tous les problèmes cette semaine sur l'endpoint standard.
+            // Les pages API exposent automatiquement un champ Blob en
+            // base64 dans le JSON (POST/PATCH), ou en flux binaire via
+            // le lien média correspondant — voir PageAPI.
+            // ExcelImportRequest.al.
         }
         field(10; Success; Boolean)
         {
@@ -47,6 +47,17 @@ table 50390 "Talan QC Excel Import Req"
         field(11; "Error Message"; Text[2048])
         {
             Caption = 'Error Message';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(12; "Import Status Debug"; Text[100])
+        {
+            // AJOUTÉ (01/09/2026) — diagnostic : valeur RÉELLE du champ
+            // "Import Status" du package juste après notre tentative de le
+            // fixer explicitement à Completed — pour voir directement dans
+            // l'outil si ça a fonctionné, sans avoir besoin d'aller
+            // vérifier manuellement dans l'interface BC à chaque test.
+            Caption = 'Import Status Debug';
             DataClassification = SystemMetadata;
             Editable = false;
         }

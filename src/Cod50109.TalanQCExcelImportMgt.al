@@ -52,12 +52,18 @@ codeunit 50390 "Talan QC Excel Import Mgt"
         // AJOUTÉ (01/09/2026) — marque le package comme "importé avec
         // succès" pour que l'action standard "Appliquer" (Microsoft.NAV.
         // apply, appelée séparément par l'outil ensuite) accepte de
-        // s'exécuter. ⚠️ Ligne à vérifier/ajuster dans VS Code — nom de
-        // champ et valeur d'énuméré non confirmés contre le Base App.
+        // s'exécuter.
         if ConfigPackage.Get(ImportReq."Package Code") then begin
             ConfigPackage.Validate("Import Status", ConfigPackage."Import Status"::Completed);
             ConfigPackage.Modify(true);
         end;
+
+        // AJOUTÉ (01/09/2026) — diagnostic : relit la valeur RÉELLE du
+        // champ juste après notre tentative de le fixer, pour la remonter
+        // jusqu'à l'outil Python sans jamais avoir besoin d'aller
+        // vérifier manuellement dans l'interface BC.
+        if ConfigPackage.Get(ImportReq."Package Code") then
+            ImportReq."Import Status Debug" := Format(ConfigPackage."Import Status");
 
         ImportReq.Success := true;
     end;
